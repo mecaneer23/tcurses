@@ -77,23 +77,6 @@ class Screen:
         self.screen.delete("1.0", "end")
 
 
-# def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
-#     root = Tk()
-
-#     def check_thread():
-#         if func_thread.done():
-#             root.destroy()
-#         root.after(100, check_thread)
-
-#     # root.title(header)
-#     stdscr = Screen(root)
-#     with ThreadPoolExecutor() as executor:
-#         func_thread = executor.submit(func, stdscr, *args)
-
-#     root.after(100, check_thread)
-#     root.mainloop()
-#     return func_thread.result()
-
 def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
     root = Tk()
     stdscr = Screen(root)
@@ -101,22 +84,18 @@ def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
     def worker(q: list[T]):
         q.append(func(stdscr, *args))
 
-    result_queue = []
-
-    func_thread = Thread(target=worker, args=(result_queue,))
-    func_thread.start()
-
     def check_thread():
         if not func_thread.is_alive():
             root.destroy()
             return
         root.after(100, check_thread)
 
+    result_queue = []
+    func_thread = Thread(target=worker, args=(result_queue,))
+    func_thread.start()
     root.after(100, check_thread)
-
     root.mainloop()
     func_thread.join()
-
     return result_queue[0]
 
 
