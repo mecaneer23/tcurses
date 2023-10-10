@@ -1,0 +1,6 @@
+Add the following potential attributes/methods
+- bold text (A_BOLD)
+- special characters (ACS_RTEE, ACS_LTEE, ACS_HLINE)
+- standout text (A_STANDOUT)
+- color text (color_pair)
+- newwin with dimensions (newwin)
