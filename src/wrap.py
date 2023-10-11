@@ -2,6 +2,7 @@
 # pylint: disable=missing-class-docstring, too-many-ancestors
 # pylint: disable=missing-function-docstring, missing-module-docstring
 
+from enum import Flag
 from functools import wraps
 from threading import Thread
 from tkinter import Tk, Text, BooleanVar
@@ -20,21 +21,38 @@ def _updates_screen(func: Callable[..., None]) -> Callable[..., None]:
     return _inner
 
 
+class curses(Flag):  # pylint: disable=invalid-name
+    A_NORMAL = 0
+    A_BOLD = 2**0
+    A_STANDOUT = 2**1
+    ACS_RTEE = 2**2
+    ACS_LTEE = 2**3
+    ACS_HLINE = 2**4
+
+
 class Screen:
     def __init__(self, master: Tk) -> None:
         self.root = master
         self.root.bind("<Key>", self._handle_key)
         self.width = 100
         self.height = 30
-        self.screen = Text(self.root, width=self.width, height=self.height)
+        self.screen = Text(
+            self.root,
+            width=self.width,
+            height=self.height,
+            font="Terminal 12",
+            foreground="black",
+            background="white",
+        )
         self.screen.pack()
+        self.screen.tag_configure("bold", font="Terminal 12 bold")
+        self.screen.tag_configure("standout", background="black", foreground="white")
         self.screen.configure(state="disabled")
         self.key = 0
         self.has_key = BooleanVar()
         self.has_key.set(False)
 
     def _handle_key(self, event) -> None:
-        print(f"key {event.char} pressed")
         if self.has_key.get() is False:
             self.key = event.char
             self.has_key.set(True)
@@ -42,23 +60,53 @@ class Screen:
     def getch(self) -> int:
         self.root.wait_variable(self.has_key)
         self.has_key.set(False)
-        print(f"returning {self.key}")
         return self.key
 
-    @_updates_screen
-    def addstr(self, y: int, x: int, text: str, attr: int = 0) -> None:
-        y += 1
-        x += 1
-        current_lines = self.screen.get("1.0", "end").split("\n")
-        while len(current_lines) < y:
-            current_lines.append("")
-        current_lines[y - 1] = current_lines[y - 1].ljust(x - 1)
-        current_lines[y - 1] = (
-            current_lines[y - 1][: x - 1] + text + current_lines[y - 1][x - 1 :]
+    def _parse_attrs(self, attrs: int) -> list[str]:
+        possible_attrs: dict[int, str] = dict(
+            (item.value, item.name) for item in list(dict(curses.__members__).values())
         )
-        updated_content = "\n".join(current_lines)
+        possible_returns = {
+            "A_BOLD": "bold",
+            "A_STANDOUT": "standout",
+            # following two might be flipped
+            "ACS_RTEE": "⊢",
+            "ACS_LTEE": "⊣",
+            "ACS_HLINE": "⎯",
+        }
+        return [
+            possible_returns[possible_attrs[2 ** (len(str(attrs)) - 1 - pos)]]
+            for pos, val in enumerate(str(attrs))
+            if val == "1"
+        ]
+
+    @_updates_screen
+    def addstr(self, y: int, x: int, text: str, attr: curses = curses.A_NORMAL) -> None:
+        # lines = self.screen.get("1.0", "end").split('\n')
+        # line = lines[y] if y < len(lines) else ""
+        # lines[y] = line[:x] + text + line[x+len(text):]
+        # updated_content = "\n".join(lines)
+        # self.screen.insert(
+        #     f"{y + 1}.{x}",
+        #     updated_content,
+        #     self._parse_attrs(int(bin(attr.value)[2:])),
+        # )
+        pass
+
+    @_updates_screen
+    def old_addstr(
+        self, y: int, x: int, text: str, attr: curses = curses.A_NORMAL
+    ) -> None:
+        lines = self.screen.get("1.0", "end").split("\n")
+        while len(lines) < y + 1:
+            lines.append("")
+        lines[y] = lines[y].ljust(x)
+        lines[y] = lines[y][:x] + text + lines[y][x:]
+        updated_content = "\n".join(lines)
         self.screen.delete("1.0", "end")
-        self.screen.insert("1.0", updated_content)
+        self.screen.insert(
+            "1.0", updated_content, self._parse_attrs(int(bin(attr.value)[2:]))
+        )
 
     def getmaxyx(self) -> tuple[int, int]:
         return self.height, self.width
@@ -101,7 +149,9 @@ def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
 
 def main(stdscr):
     stdscr.clear()
-    stdscr.addstr(0, 1, "Hello, world!")
+    stdscr.addstr(0, 0, "Hello, world!")
+    stdscr.addstr(1, 2, "Bold text", curses.A_BOLD)
+    stdscr.addstr(0, 20, "Hello, world!")
     stdscr.refresh()
     return stdscr.getch()
 
