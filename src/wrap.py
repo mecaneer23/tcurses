@@ -45,12 +45,14 @@ class Screen:
             background="white",
         )
         self.screen.pack()
+        self.screen.focus_set()
         self.screen.tag_configure("bold", font="Terminal 12 bold")
         self.screen.tag_configure("standout", background="black", foreground="white")
         self.screen.configure(state="disabled")
         self.key = 0
         self.has_key = BooleanVar()
         self.has_key.set(False)
+        self._init_screen()
 
     def _handle_key(self, event) -> None:
         if self.has_key.get() is False:
@@ -61,6 +63,12 @@ class Screen:
         self.root.wait_variable(self.has_key)
         self.has_key.set(False)
         return self.key
+
+    @_updates_screen
+    def _init_screen(self) -> None:
+        self.screen.insert(
+            "1.0", "\n".join(self.width * " " for _ in range(self.height))
+        )
 
     def _parse_attrs(self, attrs: int) -> list[str]:
         possible_attrs: dict[int, str] = dict(
@@ -82,16 +90,12 @@ class Screen:
 
     @_updates_screen
     def addstr(self, y: int, x: int, text: str, attr: curses = curses.A_NORMAL) -> None:
-        # lines = self.screen.get("1.0", "end").split('\n')
-        # line = lines[y] if y < len(lines) else ""
-        # lines[y] = line[:x] + text + line[x+len(text):]
-        # updated_content = "\n".join(lines)
-        # self.screen.insert(
-        #     f"{y + 1}.{x}",
-        #     updated_content,
-        #     self._parse_attrs(int(bin(attr.value)[2:])),
-        # )
-        pass
+        self.screen.replace(
+            f"{y + 1}.{x}",
+            f"{y + 1}.{x + len(text)}",
+            text,
+            self._parse_attrs(int(bin(attr.value)[2:])),
+        )
 
     @_updates_screen
     def old_addstr(
@@ -100,8 +104,7 @@ class Screen:
         lines = self.screen.get("1.0", "end").split("\n")
         while len(lines) < y + 1:
             lines.append("")
-        lines[y] = lines[y].ljust(x)
-        lines[y] = lines[y][:x] + text + lines[y][x:]
+        lines[y] = lines[y].ljust(x)[:x] + text + lines[y].ljust(x)[x:]
         updated_content = "\n".join(lines)
         self.screen.delete("1.0", "end")
         self.screen.insert(
@@ -123,6 +126,7 @@ class Screen:
     @_updates_screen
     def clear(self) -> None:
         self.screen.delete("1.0", "end")
+        self._init_screen()
 
 
 def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
@@ -134,11 +138,11 @@ def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
 
     def check_thread():
         if not func_thread.is_alive():
-            root.destroy()
+            root.quit()
             return
         root.after(100, check_thread)
 
-    result_queue = []
+    result_queue: list[T] = []
     func_thread = Thread(target=worker, args=(result_queue,))
     func_thread.start()
     root.after(100, check_thread)
@@ -149,9 +153,11 @@ def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
 
 def main(stdscr):
     stdscr.clear()
-    stdscr.addstr(0, 0, "Hello, world!")
+    stdscr.addstr(0, 10, "Hello, world!")
     stdscr.addstr(1, 2, "Bold text", curses.A_BOLD)
-    stdscr.addstr(0, 20, "Hello, world!")
+    stdscr.clear()
+    stdscr.addstr(0, 12, "Hello, world!")
+    stdscr.addstr(1, 22, "Bold text", curses.A_BOLD)
     stdscr.refresh()
     return stdscr.getch()
 
