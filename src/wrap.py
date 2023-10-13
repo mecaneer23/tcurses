@@ -201,7 +201,9 @@ def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
     root.after(100, check_thread)
     root.mainloop()
     func_thread.join()
-    return result_queue[0]
+    if len(result_queue) == 1:
+        return result_queue[0]
+    raise RuntimeError("tcurses quit unexpectedly")
 
 
 def main(stdscr):
