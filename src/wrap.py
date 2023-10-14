@@ -14,9 +14,9 @@ T = TypeVar("T")
 def _updates_screen(func: Callable[..., None]) -> Callable[..., None]:
     @wraps(func)
     def _inner(self, *args, **kwargs) -> None:
-        self.screen.configure(state="normal")
+        screen.configure(state="normal")
         func(self, *args, **kwargs)
-        self.screen.configure(state="disabled")
+        screen.configure(state="disabled")
 
     return _inner
 
@@ -35,9 +35,15 @@ class curses:  # pylint: disable=invalid-name
     COLOR_CYAN = 2**16
     COLOR_WHITE = 2**17
 
-    ACS_RTEE = 2**32
-    ACS_LTEE = 2**33
-    ACS_HLINE = 2**34
+    # https://www.w3.org/TR/xml-entity-names/025.html
+    ACS_RTEE = "⊣"
+    ACS_LTEE = "⊢"
+    ACS_HLINE = "─"
+    ACS_VLINE = "│"
+    ACS_URCORNER = "┐"
+    ACS_ULCORNER = "┌"
+    ACS_LRCORNER = "┘"
+    ACS_LLCORNER = "└"
 
     _color_pairs: list[tuple[int, int]] = [(7, 0)]
 
@@ -65,61 +71,39 @@ class curses:  # pylint: disable=invalid-name
         fg, bg = curses._color_pairs[pair_number]
         return 2 ** (10 + fg) | 2 ** (10 + bg)
 
+    @staticmethod
+    def newwin(nlines: int, ncols: int, begin_y: int = 0, begin_x: int = 0):
+        return Screen(screen, (ncols, nlines), (begin_y, begin_x))
+
 
 class Screen:
-    def __init__(self, master: Tk) -> None:
-        self.root = master
-        self.root.bind("<Key>", self._handle_key)
-        self.width = 100
-        self.height = 30
-        self.screen = Text(
-            self.root,
-            width=self.width,
-            height=self.height,
-            font="Terminal 12",
-            foreground="black",
-            background="white",
-        )
-        self.screen.pack()
-        self.screen.focus_set()
-        self.screen.tag_configure("bold", font="Terminal 12 bold")
-        self.screen.tag_configure("black", foreground="black", background="white")
-        self.screen.tag_configure("red", foreground="red", background="white")
-        self.screen.tag_configure("green", foreground="green", background="white")
-        self.screen.tag_configure("yellow", foreground="yellow", background="white")
-        self.screen.tag_configure("blue", foreground="blue", background="white")
-        self.screen.tag_configure("cyan", foreground="cyan", background="white")
-        self.screen.tag_configure("magenta", foreground="magenta", background="white")
-        self.screen.tag_configure("white", foreground="white", background="white")
-        self.screen.tag_configure("black*", background="black", foreground="white")
-        self.screen.tag_configure("red*", background="red", foreground="white")
-        self.screen.tag_configure("green*", background="green", foreground="white")
-        self.screen.tag_configure("yellow*", background="yellow", foreground="white")
-        self.screen.tag_configure("blue*", background="blue", foreground="white")
-        self.screen.tag_configure("cyan*", background="cyan", foreground="white")
-        self.screen.tag_configure("magenta*", background="magenta", foreground="white")
-        self.screen.tag_configure("white*", background="white", foreground="white")
-        self.screen.configure(state="disabled")
+    def __init__(
+        self,
+        text: Text,
+        width_height: tuple[int, int] = (100, 30),
+        begin_yx: tuple[int, int] = (0, 0),
+    ) -> None:
+        self.screen = text
+        self.width = width_height[0]
+        self.height = width_height[1]
+        self.begin_yx = begin_yx
         self.key = 0
         self.has_key = BooleanVar()
         self.has_key.set(False)
-        self._init_screen()
+        root.bind("<Key>", self.handle_key)
 
-    def _handle_key(self, event) -> None:
+    def __del__(self):
+        root.bind("<Key>", stdscr.handle_key)
+
+    def handle_key(self, event) -> None:
         if self.has_key.get() is False:
             self.key = event.char
             self.has_key.set(True)
 
     def getch(self) -> int:
-        self.root.wait_variable(self.has_key)
+        root.wait_variable(self.has_key)
         self.has_key.set(False)
         return self.key
-
-    @_updates_screen
-    def _init_screen(self) -> None:
-        self.screen.insert(
-            "1.0", "\n".join(self.width * " " for _ in range(self.height))
-        )
 
     def _parse_attrs(self, attrs: int) -> list[str]:
         possible_attrs: dict[int, str] = dict(
@@ -129,9 +113,6 @@ class Screen:
         )
         possible_returns = {
             "A_BOLD": "bold",
-            "ACS_RTEE": "⊣",
-            "ACS_LTEE": "⊢",
-            "ACS_HLINE": "⎯",
             "COLOR_BLACK": "black",
             "COLOR_RED": "red",
             "COLOR_GREEN": "green",
@@ -157,9 +138,11 @@ class Screen:
 
     @_updates_screen
     def addstr(self, y: int, x: int, text: str, attr: int = curses.A_NORMAL) -> None:
+        y_pos = self.begin_yx[0] + y
+        x_pos = self.begin_yx[1] + x
         self.screen.replace(
-            f"{y + 1}.{x}",
-            f"{y + 1}.{x + len(text)}",
+            f"{y_pos + 1}.{x_pos}",
+            f"{y_pos + 1}.{x_pos + len(text)}",
             text,
             self._parse_attrs(int(bin(attr)[2:])),
         )
@@ -170,22 +153,87 @@ class Screen:
     def addch(self, y: int, x: int, char: str, attr: int = 0) -> None:
         self.addstr(y, x, char, attr)
 
-    def nodelay(self) -> None:
-        return
+    def nodelay(self, flag: bool = True) -> None:
+        _ = flag
+
+    def box(self):
+        self.addstr(
+            0,
+            0,
+            curses.ACS_ULCORNER
+            + curses.ACS_HLINE * (self.width - 2)
+            + curses.ACS_URCORNER,
+        )
+        for i in range(self.height - 2):
+            self.addstr(i + 1, 0, curses.ACS_VLINE)
+        for i in range(self.height - 2):
+            self.addstr(i + 1, self.width - 1, curses.ACS_VLINE)
+        self.addstr(
+            self.height - 1,
+            0,
+            curses.ACS_LLCORNER
+            + curses.ACS_HLINE * (self.width - 2)
+            + curses.ACS_LRCORNER,
+        )
+
+    def hline(self, y: int, x: int, ch: str, n: int) -> None:
+        self.addstr(y, x, ch * n)
 
     def refresh(self) -> None:
         return
 
     @_updates_screen
     def clear(self) -> None:
-        self.screen.delete("1.0", "end")
-        self._init_screen()
+        for row in range(self.begin_yx[0] + 1, self.begin_yx[0] + 1 + self.height):
+            self.screen.replace(
+                f"{row}.{self.begin_yx[1]}",
+                f"{row}.{self.width + self.begin_yx[1]}",
+                " " * self.width,
+            )
+
+
+root = Tk()
+# use multiprocessing
+# root.protocol("WM_DELETE_WINDOW", quit?)
+WIDTH = 100
+HEIGHT = 30
+screen = Text(
+    root,
+    width=WIDTH,
+    height=HEIGHT,
+    font="Terminal 12",
+    foreground="black",
+    background="white",
+)
+screen.insert(
+    f"{0}.{1}",
+    "\n".join(WIDTH * " " for _ in range(HEIGHT)),
+)
+screen.pack()
+screen.focus_set()
+screen.tag_configure("bold", font="Terminal 12 bold")
+screen.tag_configure("black", foreground="black", background="white")
+screen.tag_configure("red", foreground="red", background="white")
+screen.tag_configure("green", foreground="green", background="white")
+screen.tag_configure("yellow", foreground="yellow", background="white")
+screen.tag_configure("blue", foreground="blue", background="white")
+screen.tag_configure("cyan", foreground="cyan", background="white")
+screen.tag_configure("magenta", foreground="magenta", background="white")
+screen.tag_configure("white", foreground="white", background="white")
+screen.tag_configure("black*", background="black", foreground="white")
+screen.tag_configure("red*", background="red", foreground="white")
+screen.tag_configure("green*", background="green", foreground="white")
+screen.tag_configure("yellow*", background="yellow", foreground="white")
+screen.tag_configure("blue*", background="blue", foreground="white")
+screen.tag_configure("cyan*", background="cyan", foreground="white")
+screen.tag_configure("magenta*", background="magenta", foreground="white")
+screen.tag_configure("white*", background="white", foreground="white")
+screen.configure(state="disabled")
+
+stdscr = Screen(screen)
 
 
 def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
-    root = Tk()
-    stdscr = Screen(root)
-
     def worker(q: list[T]):
         q.append(func(stdscr, *args))
 
@@ -204,28 +252,3 @@ def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
     if len(result_queue) == 1:
         return result_queue[0]
     raise RuntimeError("tcurses quit unexpectedly")
-
-
-def main(stdscr):
-    for i, color in enumerate(
-        [
-            curses.COLOR_RED,
-            curses.COLOR_GREEN,
-            curses.COLOR_YELLOW,
-            curses.COLOR_BLUE,
-            curses.COLOR_MAGENTA,
-            curses.COLOR_CYAN,
-            curses.COLOR_WHITE,
-        ],
-        start=1,
-    ):
-        curses.init_pair(i, color, -1)
-    stdscr.clear()
-    stdscr.addstr(0, 0, "Hello, world!", curses.color_pair(4))
-    stdscr.addstr(1, 2, "Bold text", curses.color_pair(2) | curses.A_STANDOUT)
-    stdscr.refresh()
-    return stdscr.getch()
-
-
-if __name__ == "__main__":
-    wrapper(main)

@@ -1,2 +1,1 @@
-Add the following potential attributes/methods
-- newwin with dimensions (newwin)
+Color support is still sorta funky for color pairs I haven't hardcoded
