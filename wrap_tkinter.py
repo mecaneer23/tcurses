@@ -3,7 +3,7 @@
 # pylint: disable=missing-function-docstring, missing-module-docstring
 
 from functools import wraps
-from math import sqrt
+from math import log2
 from threading import Thread
 from tkinter import Tk, Text, BooleanVar
 from typing import Any, Callable, TypeVar
@@ -23,8 +23,8 @@ def _updates_screen(func: Callable[..., None]) -> Callable[..., None]:
 
 class curses:  # pylint: disable=invalid-name
     A_NORMAL = 0
-    A_BOLD = 2**0
     A_STANDOUT = 2**1
+    A_BOLD = 2**2
 
     COLOR_BLACK = 2**10
     COLOR_RED = 2**11
@@ -57,11 +57,11 @@ class curses:  # pylint: disable=invalid-name
 
     @staticmethod
     def _get_usable_color(bit_represented: int) -> int:
-        return int(sqrt(bit_represented >> 10) + 0.5)
+        return int(log2(bit_represented) % 10)
 
     @staticmethod
     def init_pair(pair_number: int, fg: int, bg: int) -> None:
-        bg = max(bg, 0)
+        bg = max(bg, 2**10)
         curses._color_pairs.insert(
             pair_number, (curses._get_usable_color(fg), curses._get_usable_color(bg))
         )
@@ -80,8 +80,8 @@ class Screen:
     def __init__(
         self,
         text: Text,
-        width_height: tuple[int, int] = (100, 30),
-        begin_yx: tuple[int, int] = (0, 0),
+        width_height: tuple[int, int],
+        begin_yx: tuple[int, int],
     ) -> None:
         self.screen = text
         self.width = width_height[0]
@@ -194,7 +194,7 @@ class Screen:
 
 root = Tk()
 # use multiprocessing
-# root.protocol("WM_DELETE_WINDOW", quit?)
+root.protocol("WM_DELETE_WINDOW", root.destroy)
 WIDTH = 100
 HEIGHT = 30
 screen = Text(
@@ -219,7 +219,7 @@ screen.tag_configure("yellow", foreground="yellow", background="white")
 screen.tag_configure("blue", foreground="blue", background="white")
 screen.tag_configure("cyan", foreground="cyan", background="white")
 screen.tag_configure("magenta", foreground="magenta", background="white")
-screen.tag_configure("white", foreground="white", background="white")
+screen.tag_configure("white", foreground="black", background="white")
 screen.tag_configure("black*", background="black", foreground="white")
 screen.tag_configure("red*", background="red", foreground="white")
 screen.tag_configure("green*", background="green", foreground="white")
@@ -227,10 +227,10 @@ screen.tag_configure("yellow*", background="yellow", foreground="white")
 screen.tag_configure("blue*", background="blue", foreground="white")
 screen.tag_configure("cyan*", background="cyan", foreground="white")
 screen.tag_configure("magenta*", background="magenta", foreground="white")
-screen.tag_configure("white*", background="white", foreground="white")
+screen.tag_configure("white*", background="black", foreground="white")
 screen.configure(state="disabled")
 
-stdscr = Screen(screen)
+stdscr = Screen(screen, (WIDTH, HEIGHT), (0, 0))
 
 
 def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
