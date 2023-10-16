@@ -261,9 +261,9 @@ screen.configure(state="disabled")
 stdscr = Screen(screen, (WIDTH, HEIGHT), (0, 0))
 
 
-def wrapper(func: Callable[..., T], *args: list[Any]) -> T:
+def wrapper(func: Callable[..., T], *args: list[Any], **kwargs: dict[str, Any]) -> T:
     def worker(q: list[T]):
-        q.append(func(stdscr, *args))
+        q.append(func(stdscr, *args, **kwargs))
 
     def check_thread():
         if not func_thread.is_alive():
