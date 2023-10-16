@@ -5,7 +5,7 @@
 from functools import wraps
 from math import log2
 from threading import Thread
-from tkinter import Tk, Text, BooleanVar, Event
+from tkinter import Tk, Text, IntVar, Event
 from typing import Any, Callable, TypeVar
 
 T = TypeVar("T")
@@ -76,6 +76,19 @@ class curses:  # pylint: disable=invalid-name
         return Screen(screen, (ncols, nlines), (begin_y, begin_x))
 
 
+class _Key:
+    def __init__(self, name: str, no_modifiers: int, shift: int = 0) -> None:
+        self.name = name
+        self.no_modifiers = no_modifiers
+        self.shift = shift
+
+    def get(self) -> int:
+        return self.no_modifiers
+
+    def get_shift(self) -> int:
+        return self.shift
+
+
 class Screen:
     def __init__(
         self,
@@ -87,43 +100,49 @@ class Screen:
         self.width = width_height[0]
         self.height = width_height[1]
         self.begin_yx = begin_yx
-        self.key: int = 0
-        self.has_key = BooleanVar()
-        self.has_key.set(False)
-        root.bind("<Key>", self.handle_key)
+        self.keys: list[int] = []
+        self.keys_len = IntVar()
+        self.keys_len.set(0)
+        root.bind("<Key>", self._handle_key)
 
     def __del__(self):
-        root.bind("<Key>", stdscr.handle_key)
+        root.bind("<Key>", stdscr._handle_key)
 
-    def handle_key(self, event: Event) -> None:
-        # 351: ("shift + tab (on windows)", handle_dedent, "todos, selected"),
-        # 353: ("shift + tab", handle_dedent, "todos, selected"),
-        if (
-            self.has_key.get()
-            or event.keysym.endswith(("_R", "_L"))
-        ):
+    def _handle_key(self, event: Event) -> None:
+        if self.keys_len.get() > 0 or event.keysym.endswith(("_R", "_L")):
             return
         # check if state includes modifier(s)
-        # state = int(event.state)
+        state = int(event.state)
         # ctrl = (state & 0x4) != 0
-        # alt = (state & 0x8) != 0 or (state & 0x80) != 0
-        # shift = (state & 0x1) != 0
-        self.has_key.set(True)
+        alt = (state & 0x8) != 0 or (state & 0x80) != 0
+        shift = (state & 0x1) != 0
+        self.keys_len.set(len(self.keys))
         if repr(event.char).startswith("'\\x"):
-            self.key = int(repr(event.char)[3:-1], 16)
+            self.keys.append(int(repr(event.char)[3:-1], 16))
             return
-        special_keys: dict[int, tuple[str, int]] = {
-            23: ("Tab", 9),
-            36: ("Return", 10),
-            111: ("Up", 259),
-            116: ("Down", 258),
-            119: ("Delete", 330),
+        special_keys: dict[int, _Key] = {
+            23: _Key("Tab", 9, 353),
+            36: _Key("Return", 10),
+            111: _Key("Up", 259),
+            116: _Key("Down", 258),
+            119: _Key("Delete", 330),
         }
         if event.keycode in special_keys:
-            self.key = special_keys[event.keycode][1]
+            if shift:
+                self.keys.append(special_keys[event.keycode].get_shift())
+                return
+            self.keys.append(special_keys[event.keycode].get())
+            return
+        alt_keys: dict[int, _Key] = {
+            42: _Key("alt + shift + g", 71),
+        }
+        if alt and event.keycode in alt_keys:
+            self.keys.append(27)
+            self.keys.append(alt_keys[event.keycode].get())
+            self.keys_len.set(len(self.keys))
             return
         if len(event.char) > 0:
-            self.key = event.keysym_num
+            self.keys.append(event.keysym_num)
             return
         raise ValueError(
             f"\n{event.char=}\n"
@@ -134,9 +153,10 @@ class Screen:
         )
 
     def getch(self) -> int:
-        root.wait_variable(self.has_key)
-        self.has_key.set(False)
-        return self.key
+        if len(self.keys) < 2:
+            root.wait_variable(self.keys_len)
+        self.keys_len.set(len(self.keys) - 1)
+        return self.keys.pop(0)
 
     def _parse_attrs(self, attrs: int) -> list[str]:
         possible_attrs: dict[int, str] = dict(

@@ -32,6 +32,9 @@ def main(scr: Screen):
     while True:
         x = scr.getch()
         print(x)
+        if x == 27:
+            y = scr.getch()
+            print(y)
         if x == 113:
             break
 
