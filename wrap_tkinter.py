@@ -5,7 +5,7 @@
 from functools import wraps
 from math import log2
 from threading import Thread
-from tkinter import Tk, Text, BooleanVar
+from tkinter import Tk, Text, BooleanVar, Event
 from typing import Any, Callable, TypeVar
 
 T = TypeVar("T")
@@ -87,7 +87,7 @@ class Screen:
         self.width = width_height[0]
         self.height = width_height[1]
         self.begin_yx = begin_yx
-        self.key = 0
+        self.key: int = 0
         self.has_key = BooleanVar()
         self.has_key.set(False)
         root.bind("<Key>", self.handle_key)
@@ -95,10 +95,38 @@ class Screen:
     def __del__(self):
         root.bind("<Key>", stdscr.handle_key)
 
-    def handle_key(self, event) -> None:
-        if self.has_key.get() is False:
-            self.key = event.char
-            self.has_key.set(True)
+    def handle_key(self, event: Event) -> None:
+        if (
+            self.has_key.get()
+            or event.keysym.endswith(("_R", "_L"))
+        ):
+            return
+        # check if state includes modifier(s)
+        # state = int(event.state)
+        # ctrl = (state & 0x4) != 0
+        # alt = (state & 0x8) != 0 or (state & 0x80) != 0
+        # shift = (state & 0x1) != 0
+        self.has_key.set(True)
+        if repr(event.char).startswith("'\\x"):
+            self.key = int(repr(event.char)[3:-1], 16)
+            return
+        special_keys: dict[int, tuple[str, int]] = {
+            36: ("Return", 10),
+        }
+        if event.keycode in special_keys:
+            self.key = special_keys[event.keycode][1]
+            return
+        if len(event.char) > 0:
+            self.key = event.keysym_num
+            return
+        raise ValueError(
+            f"\n{list(event.char)=}\n"
+            f"{event.keycode=}\n"
+            f"{list(event.keysym)=}\n"
+            f"{event.keysym[-1]=}\n"
+            f"{event.keysym_num=}\n"
+            f"{event.state=}"
+        )
 
     def getch(self) -> int:
         root.wait_variable(self.has_key)
