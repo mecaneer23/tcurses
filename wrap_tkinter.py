@@ -153,7 +153,7 @@ class Screen:
         )
 
     def getch(self) -> int:
-        if len(self.keys) < 2:
+        if len(self.keys) == 0:
             root.wait_variable(self.keys_len)
         self.keys_len.set(len(self.keys) - 1)
         return self.keys.pop(0)
