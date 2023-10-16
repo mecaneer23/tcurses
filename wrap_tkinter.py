@@ -96,6 +96,8 @@ class Screen:
         root.bind("<Key>", stdscr.handle_key)
 
     def handle_key(self, event: Event) -> None:
+        # 351: ("shift + tab (on windows)", handle_dedent, "todos, selected"),
+        # 353: ("shift + tab", handle_dedent, "todos, selected"),
         if (
             self.has_key.get()
             or event.keysym.endswith(("_R", "_L"))
@@ -111,7 +113,11 @@ class Screen:
             self.key = int(repr(event.char)[3:-1], 16)
             return
         special_keys: dict[int, tuple[str, int]] = {
+            23: ("Tab", 9),
             36: ("Return", 10),
+            111: ("Up", 259),
+            116: ("Down", 258),
+            119: ("Delete", 330),
         }
         if event.keycode in special_keys:
             self.key = special_keys[event.keycode][1]
@@ -120,10 +126,9 @@ class Screen:
             self.key = event.keysym_num
             return
         raise ValueError(
-            f"\n{list(event.char)=}\n"
+            f"\n{event.char=}\n"
             f"{event.keycode=}\n"
-            f"{list(event.keysym)=}\n"
-            f"{event.keysym[-1]=}\n"
+            f"{event.keysym=}\n"
             f"{event.keysym_num=}\n"
             f"{event.state=}"
         )

@@ -2,11 +2,11 @@
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring, missing-module-docstring
 
-from wrap_tkinter import wrapper, curses
+from wrap_tkinter import wrapper, curses, Screen
 # import curses
 
 
-def main(scr):
+def main(scr: Screen):
     curses.use_default_colors()
     for i, color in enumerate(
         [
@@ -21,15 +21,19 @@ def main(scr):
         start=1,
     ):
         curses.init_pair(i, color, -1)
-    scr.addstr(10, 1, "Hello, world!", curses.color_pair(7))
+    # scr.addstr(10, 1, "Hello, world!", curses.color_pair(7))
     # scr.box()
     # win = curses.newwin(3, 20, 10, 10)
     # win.clear()
     # win.box()
     # win.addstr(1, 1, "Bold text", curses.color_pair(2))
     # win.clear()
-    # win.addstr(1, 1, "Bold text", curses.color_pair(5) | curses.A_STANDOUT)
-    return scr.getch()
+    scr.addstr(1, 1, "Bold text", curses.color_pair(5) | curses.A_STANDOUT)
+    while True:
+        x = scr.getch()
+        print(x)
+        if x == 113:
+            break
 
 
 if __name__ == "__main__":
