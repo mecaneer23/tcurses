@@ -133,24 +133,12 @@ class Screen:
                 return
             self.keys.append(special_keys[event.keycode].get())
             return
-        alt_keys: dict[int, _Key] = {
-            42: _Key("alt + shift + g", 71),
-        }
-        if alt and event.keycode in alt_keys:
-            self.keys.append(27)
-            self.keys.append(alt_keys[event.keycode].get())
+        if alt:
+            self.keys.append(27)  # escape
+            self.keys.append(event.keysym_num)
             self.keys_len.set(len(self.keys))
             return
-        if len(event.char) > 0:
-            self.keys.append(event.keysym_num)
-            return
-        raise ValueError(
-            f"\n{event.char=}\n"
-            f"{event.keycode=}\n"
-            f"{event.keysym=}\n"
-            f"{event.keysym_num=}\n"
-            f"{event.state=}"
-        )
+        self.keys.append(event.keysym_num)
 
     def getch(self) -> int:
         if len(self.keys) == 0:
