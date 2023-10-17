@@ -111,6 +111,8 @@ class Screen:
     def _handle_key(self, event: Event) -> None:
         if self.keys_len.get() > 0 or event.keysym.endswith(("_R", "_L")):
             return
+        if event.keysym_num == 99:  # ctrl+c
+            raise KeyboardInterrupt()
         # check if state includes modifier(s)
         state = int(event.state)
         # ctrl = (state & 0x4) != 0
