@@ -5,7 +5,7 @@
 from functools import wraps
 from math import log2
 from threading import Thread
-from tkinter import Tk, Text, IntVar, Event
+from tkinter import Tk, Text, BooleanVar, Event
 from typing import Any, Callable, TypeVar
 
 T = TypeVar("T")
@@ -76,17 +76,45 @@ class curses:  # pylint: disable=invalid-name
         return Screen(screen, (ncols, nlines), (begin_y, begin_x))
 
 
-class _Key:
-    def __init__(self, name: str, no_modifiers: int, shift: int = 0) -> None:
+class _Key:  # pylint: disable=too-many-instance-attributes
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        name: str,
+        no_modifiers: int,
+        /,
+        shift: int = 0,
+        alt: int = 0,
+        ctrl: int = 0,
+        escape: str = "",
+    ) -> None:
         self.name = name
         self.no_modifiers = no_modifiers
-        self.shift = shift
+        self.shift = shift if shift > 0 else no_modifiers
+        self.alt = alt if alt > 0 else no_modifiers
+        self.ctrl = ctrl if ctrl > 0 else no_modifiers
+        self.nones = escape.count("none")
+        self.escape_ctrl = escape.count("ctrl")
+        self.escape_shift = escape.count("shift")
+        self.escape_alt = escape.count("alt")
 
-    def get(self) -> int:
-        return self.no_modifiers
+    def get(self) -> list[int]:
+        return self._inner_get(self.no_modifiers, self.nones)
 
-    def get_shift(self) -> int:
-        return self.shift
+    def _inner_get(self, value: int, escape_count: int):
+        output: list[int] = []
+        for _ in range(escape_count):
+            output.append(27)
+        output.append(value)
+        return output
+
+    def get_shift(self) -> list[int]:
+        return self._inner_get(self.shift, self.escape_shift)
+
+    def get_alt(self) -> list[int]:
+        return self._inner_get(self.alt, self.escape_alt)
+
+    def get_ctrl(self) -> list[int]:
+        return self._inner_get(self.ctrl, self.escape_ctrl)
 
 
 class Screen:
@@ -101,51 +129,63 @@ class Screen:
         self.height = width_height[1]
         self.begin_yx = begin_yx
         self.keys: list[int] = []
-        self.keys_len = IntVar()
-        self.keys_len.set(0)
+        self.has_key = BooleanVar()
+        self.has_key.set(False)
         root.bind("<Key>", self._handle_key)
 
     def __del__(self):
         root.bind("<Key>", stdscr._handle_key)
 
-    def _handle_key(self, event: Event) -> None:
-        if self.keys_len.get() > 0 or event.keysym.endswith(("_R", "_L")):
+    def _handle_key(self, event: Event) -> None:  # pylint: disable=too-many-return-statements
+        if self.has_key.get() or event.keysym.endswith(("_R", "_L")):
             return
         if event.keysym_num == 99:  # ctrl+c
             raise KeyboardInterrupt()
-        # check if state includes modifier(s)
+        self.has_key.set(True)
         state = int(event.state)
-        # ctrl = (state & 0x4) != 0
+        ctrl = (state & 0x4) != 0
         alt = (state & 0x8) != 0 or (state & 0x80) != 0
         shift = (state & 0x1) != 0
-        self.keys_len.set(len(self.keys))
-        if repr(event.char).startswith("'\\x"):
-            self.keys.append(int(repr(event.char)[3:-1], 16))
+        if event.keycode == 9:  # escape
+            self.keys.append(27)
+            self.keys.append(-1)
             return
         special_keys: dict[int, _Key] = {
-            23: _Key("Tab", 9, 353),
+            22: _Key("Backspace", 8, ctrl=23),
+            23: _Key("Tab", 9, shift=353),
+            # TODO: Maybe shift tab should be 2 shift escapes + 90?
             36: _Key("Return", 10),
+            110: _Key("Home", 72, escape="none" * 2),
             111: _Key("Up", 259),
+            113: _Key("Left", 68, escape="none" * 2 + "ctrl" * 4),
+            114: _Key("Right", 67, escape="none" * 2 + "ctrl" * 4),
+            115: _Key("End", 72, escape="none" * 2),
             116: _Key("Down", 258),
-            119: _Key("Delete", 330),
+            119: _Key("Delete", 330, ctrl=100, escape="ctrl"),
+            # TODO: Maybe delete should be 3 none escapes + 51?
         }
         if event.keycode in special_keys:
             if shift:
-                self.keys.append(special_keys[event.keycode].get_shift())
+                self.keys.extend(special_keys[event.keycode].get_shift())
                 return
-            self.keys.append(special_keys[event.keycode].get())
+            if ctrl:
+                self.keys.extend(special_keys[event.keycode].get_ctrl())
+                return
+            self.keys.extend(special_keys[event.keycode].get())
+            return
+        if repr(event.char).startswith("'\\x"):
+            self.keys.append(int(repr(event.char)[3:-1], 16))
             return
         if alt:
             self.keys.append(27)  # escape
             self.keys.append(event.keysym_num)
-            self.keys_len.set(len(self.keys))
             return
         self.keys.append(event.keysym_num)
 
     def getch(self) -> int:
         if len(self.keys) == 0:
-            root.wait_variable(self.keys_len)
-        self.keys_len.set(len(self.keys) - 1)
+            root.wait_variable(self.has_key)
+        self.has_key.set(False)
         return self.keys.pop(0)
 
     def _parse_attrs(self, attrs: int) -> list[str]:
