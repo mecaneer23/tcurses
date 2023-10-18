@@ -117,6 +117,13 @@ class _Key:  # pylint: disable=too-many-instance-attributes
         return self._inner_get(self.ctrl, self.escape_ctrl)
 
 
+# class _Cache:
+#     def __init__(self) -> None:
+#         self.cache: list[list[str]] = []
+
+#     def empty(self) -> 
+
+
 class Screen:
     def __init__(
         self,
@@ -128,6 +135,7 @@ class Screen:
         self.width = width_height[0]
         self.height = width_height[1]
         self.begin_yx = begin_yx
+        # self.cache: _Cache = _Cache()
         self.keys: list[int] = []
         self.has_key = BooleanVar()
         self.has_key.set(False)

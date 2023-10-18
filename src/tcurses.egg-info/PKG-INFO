@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: tcurses
+Version: 0.0.1
+Summary: A Tkinter interface that feels like programming in curses
+Author-email: Gabriel Natenshon <gnatenshon@gmail.com>
+Project-URL: Homepage, https://github.com/mecaneer23/tcurses
+Project-URL: Bug Tracker, https://github.com/mecaneer23/tcurses/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# T-Curses
+
+A Tkinter interface that feels like programming in curses

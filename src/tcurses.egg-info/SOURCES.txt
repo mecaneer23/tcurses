@@ -1,0 +1,9 @@
+LICENSE
+README.md
+pyproject.toml
+src/example.py
+src/wrap_tkinter.py
+src/tcurses.egg-info/PKG-INFO
+src/tcurses.egg-info/SOURCES.txt
+src/tcurses.egg-info/dependency_links.txt
+src/tcurses.egg-info/top_level.txt
