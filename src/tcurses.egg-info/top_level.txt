@@ -1,2 +1,2 @@
-example
-wrap_tkinter
+examples
+tcurses

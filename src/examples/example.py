@@ -2,7 +2,7 @@
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring, missing-module-docstring
 
-from wrap_tkinter import wrapper, curses, Screen
+from tcurses import wrapper, curses, Screen
 # import curses
 
 
