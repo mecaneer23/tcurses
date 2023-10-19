@@ -1,7 +1,7 @@
 LICENSE
 README.md
 pyproject.toml
-src/examples/example.py
+src/example.py
 src/tcurses/__init__.py
 src/tcurses.egg-info/PKG-INFO
 src/tcurses.egg-info/SOURCES.txt
