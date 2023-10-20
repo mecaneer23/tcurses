@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tcurses"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   { name="Gabriel Natenshon", email="gnatenshon@gmail.com" },
 ]

@@ -94,6 +94,10 @@ class Screen:
             running = BooleanVar()
             root.after(self.timeout_delay, running.set, True)
             root.wait_variable(running)
+            self.has_key.set(False)
+            if len(self.keys) > 0:
+                return self.keys.pop(0)
+            return -1
         if len(self.keys) == 0:
             root.wait_variable(self.has_key)
         self.has_key.set(False)
