@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tcurses
-Version: 0.0.6
+Version: 0.0.7
 Summary: A Tkinter interface that feels like programming in curses
 Author-email: Gabriel Natenshon <gnatenshon@gmail.com>
 Project-URL: Homepage, https://github.com/mecaneer23/tcurses

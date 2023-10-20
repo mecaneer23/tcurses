@@ -32,6 +32,7 @@ class Screen:
         self.width = width_height[0]
         self.height = width_height[1]
         self.begin_yx = begin_yx
+        self.timeout_delay = -1
         self.keys: list[int] = []
         self.has_key = BooleanVar()
         self.has_key.set(False)
@@ -89,10 +90,17 @@ class Screen:
         self.keys.append(event.keysym_num)
 
     def getch(self) -> int:
+        if self.timeout_delay > 0:
+            running = BooleanVar()
+            root.after(self.timeout_delay, running.set, True)
+            root.wait_variable(running)
         if len(self.keys) == 0:
             root.wait_variable(self.has_key)
         self.has_key.set(False)
         return self.keys.pop(0)
+
+    def timeout(self, delay: int) -> None:
+        self.timeout_delay = delay
 
     def _parse_attrs(self, attrs: int) -> list[str]:
         possible_attrs: dict[int, str] = dict(
