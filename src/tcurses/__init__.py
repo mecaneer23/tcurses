@@ -21,109 +21,6 @@ def _updates_screen(func: Callable[..., None]) -> Callable[..., None]:
     return _inner
 
 
-class curses:  # pylint: disable=invalid-name
-    A_NORMAL = 0
-    A_STANDOUT = 2**1
-    A_BOLD = 2**2
-
-    COLOR_BLACK = 2**10
-    COLOR_RED = 2**11
-    COLOR_GREEN = 2**12
-    COLOR_YELLOW = 2**13
-    COLOR_BLUE = 2**14
-    COLOR_MAGENTA = 2**15
-    COLOR_CYAN = 2**16
-    COLOR_WHITE = 2**17
-
-    # https://www.w3.org/TR/xml-entity-names/025.html
-    ACS_RTEE = "⊣"
-    ACS_LTEE = "⊢"
-    ACS_HLINE = "─"
-    ACS_VLINE = "│"
-    ACS_URCORNER = "┐"
-    ACS_ULCORNER = "┌"
-    ACS_LRCORNER = "┘"
-    ACS_LLCORNER = "└"
-
-    _color_pairs: list[tuple[int, int]] = [(7, 0)]
-
-    @staticmethod
-    def use_default_colors() -> None:
-        return
-
-    @staticmethod
-    def curs_set(visibility: int) -> None:
-        _ = visibility
-
-    @staticmethod
-    def _get_usable_color(bit_represented: int) -> int:
-        return int(log2(bit_represented) % 10)
-
-    @staticmethod
-    def init_pair(pair_number: int, fg: int, bg: int) -> None:
-        bg = max(bg, 2**10)
-        curses._color_pairs.insert(
-            pair_number, (curses._get_usable_color(fg), curses._get_usable_color(bg))
-        )
-
-    @staticmethod
-    def color_pair(pair_number: int) -> int:
-        fg, bg = curses._color_pairs[pair_number]
-        return 2 ** (10 + fg) | 2 ** (10 + bg)
-
-    @staticmethod
-    def newwin(nlines: int, ncols: int, begin_y: int = 0, begin_x: int = 0):
-        return Screen(screen, (ncols, nlines), (begin_y, begin_x))
-
-
-class _Key:  # pylint: disable=too-many-instance-attributes
-    def __init__(  # pylint: disable=too-many-arguments
-        self,
-        name: str,
-        no_modifiers: int,
-        /,
-        shift: int = 0,
-        alt: int = 0,
-        ctrl: int = 0,
-        escape: str = "",
-    ) -> None:
-        self.name = name
-        self.no_modifiers = no_modifiers
-        self.shift = shift if shift > 0 else no_modifiers
-        self.alt = alt if alt > 0 else no_modifiers
-        self.ctrl = ctrl if ctrl > 0 else no_modifiers
-        self.nones = escape.count("none")
-        self.escape_ctrl = escape.count("ctrl")
-        self.escape_shift = escape.count("shift")
-        self.escape_alt = escape.count("alt")
-
-    def get(self) -> list[int]:
-        return self._inner_get(self.no_modifiers, self.nones)
-
-    def _inner_get(self, value: int, escape_count: int):
-        output: list[int] = []
-        for _ in range(escape_count):
-            output.append(27)
-        output.append(value)
-        return output
-
-    def get_shift(self) -> list[int]:
-        return self._inner_get(self.shift, self.escape_shift)
-
-    def get_alt(self) -> list[int]:
-        return self._inner_get(self.alt, self.escape_alt)
-
-    def get_ctrl(self) -> list[int]:
-        return self._inner_get(self.ctrl, self.escape_ctrl)
-
-
-# class _Cache:
-#     def __init__(self) -> None:
-#         self.cache: list[list[str]] = []
-
-#     def empty(self) -> 
-
-
 class Screen:
     def __init__(
         self,
@@ -135,7 +32,6 @@ class Screen:
         self.width = width_height[0]
         self.height = width_height[1]
         self.begin_yx = begin_yx
-        # self.cache: _Cache = _Cache()
         self.keys: list[int] = []
         self.has_key = BooleanVar()
         self.has_key.set(False)
@@ -144,7 +40,9 @@ class Screen:
     def __del__(self):
         root.bind("<Key>", stdscr._handle_key)
 
-    def _handle_key(self, event: Event) -> None:  # pylint: disable=too-many-return-statements
+    def _handle_key(  # pylint: disable=too-many-return-statements
+        self, event: Event
+    ) -> None:
         if self.has_key.get() or event.keysym.endswith(("_R", "_L")):
             return
         if event.keysym_num == 99:  # ctrl+c
@@ -228,7 +126,7 @@ class Screen:
         return output
 
     @_updates_screen
-    def addstr(self, y: int, x: int, text: str, attr: int = curses.A_NORMAL) -> None:
+    def addstr(self, y: int, x: int, text: str, attr: int = 0) -> None:
         y_pos = self.begin_yx[0] + y
         x_pos = self.begin_yx[1] + x
         self.screen.replace(
@@ -283,6 +181,146 @@ class Screen:
             )
 
 
+class curses:  # pylint: disable=invalid-name
+    ERR = -1
+    OK = 0
+    A_NORMAL = 0
+    A_STANDOUT = 2**1
+    A_BOLD = 2**2
+
+    COLOR_BLACK = 2**10
+    COLOR_RED = 2**11
+    COLOR_GREEN = 2**12
+    COLOR_YELLOW = 2**13
+    COLOR_BLUE = 2**14
+    COLOR_MAGENTA = 2**15
+    COLOR_CYAN = 2**16
+    COLOR_WHITE = 2**17
+
+    # https://www.w3.org/TR/xml-entity-names/025.html
+    ACS_RTEE = "⊣"
+    ACS_LTEE = "⊢"
+    ACS_HLINE = "─"
+    ACS_VLINE = "│"
+    ACS_URCORNER = "┐"
+    ACS_ULCORNER = "┌"
+    ACS_LRCORNER = "┘"
+    ACS_LLCORNER = "└"
+
+    _color_pairs: list[tuple[int, int]] = [(7, 0)]
+
+    @staticmethod
+    def use_default_colors() -> None:
+        return
+
+    @staticmethod
+    def curs_set(visibility: int) -> None:
+        _ = visibility
+
+    @staticmethod
+    def _get_usable_color(bit_represented: int) -> int:
+        return int(log2(bit_represented) % 10)
+
+    @staticmethod
+    def init_pair(pair_number: int, fg: int, bg: int) -> None:
+        bg = max(bg, 2**10)
+        curses._color_pairs.insert(
+            pair_number, (curses._get_usable_color(fg), curses._get_usable_color(bg))
+        )
+
+    @staticmethod
+    def color_pair(pair_number: int) -> int:
+        fg, bg = curses._color_pairs[pair_number]
+        return 2 ** (10 + fg) | 2 ** (10 + bg)
+
+    @staticmethod
+    def newwin(nlines: int, ncols: int, begin_y: int = 0, begin_x: int = 0):
+        return Screen(screen, (ncols, nlines), (begin_y, begin_x))
+
+    @staticmethod
+    def wrapper(
+        func: Callable[..., T], *args: list[Any], **kwargs: dict[str, Any]
+    ) -> T:
+        def worker(q: list[T]):
+            q.append(func(stdscr, *args, **kwargs))
+
+        def check_thread():
+            if not func_thread.is_alive():
+                root.quit()
+                return
+            root.after(100, check_thread)
+
+        result_queue: list[T] = []
+        func_thread = Thread(target=worker, args=(result_queue,))
+        func_thread.start()
+        root.after(100, check_thread)
+        root.mainloop()
+        func_thread.join()
+        if len(result_queue) == 1:
+            return result_queue[0]
+        raise RuntimeError("tcurses quit unexpectedly")
+
+    @staticmethod
+    def nocbreak() -> None:
+        return
+
+    @staticmethod
+    def echo(flag: bool = True) -> None:
+        _ = flag
+
+    @staticmethod
+    def endwin() -> None:
+        return
+
+    @staticmethod
+    def initscr() -> Screen:
+        raise NotImplementedError("initscr not implemented, use wrapper instead")
+
+    class error(Exception):
+        pass
+
+
+class _Key:  # pylint: disable=too-many-instance-attributes
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        name: str,
+        no_modifiers: int,
+        /,
+        shift: int = 0,
+        alt: int = 0,
+        ctrl: int = 0,
+        escape: str = "",
+    ) -> None:
+        self.name = name
+        self.no_modifiers = no_modifiers
+        self.shift = shift if shift > 0 else no_modifiers
+        self.alt = alt if alt > 0 else no_modifiers
+        self.ctrl = ctrl if ctrl > 0 else no_modifiers
+        self.nones = escape.count("none")
+        self.escape_ctrl = escape.count("ctrl")
+        self.escape_shift = escape.count("shift")
+        self.escape_alt = escape.count("alt")
+
+    def get(self) -> list[int]:
+        return self._inner_get(self.no_modifiers, self.nones)
+
+    def _inner_get(self, value: int, escape_count: int):
+        output: list[int] = []
+        for _ in range(escape_count):
+            output.append(27)
+        output.append(value)
+        return output
+
+    def get_shift(self) -> list[int]:
+        return self._inner_get(self.shift, self.escape_shift)
+
+    def get_alt(self) -> list[int]:
+        return self._inner_get(self.alt, self.escape_alt)
+
+    def get_ctrl(self) -> list[int]:
+        return self._inner_get(self.ctrl, self.escape_ctrl)
+
+
 root = Tk()
 # use multiprocessing
 root.protocol("WM_DELETE_WINDOW", root.destroy)
@@ -322,24 +360,3 @@ screen.tag_configure("white*", background="black", foreground="white")
 screen.configure(state="disabled")
 
 stdscr = Screen(screen, (WIDTH, HEIGHT), (0, 0))
-
-
-def wrapper(func: Callable[..., T], *args: list[Any], **kwargs: dict[str, Any]) -> T:
-    def worker(q: list[T]):
-        q.append(func(stdscr, *args, **kwargs))
-
-    def check_thread():
-        if not func_thread.is_alive():
-            root.quit()
-            return
-        root.after(100, check_thread)
-
-    result_queue: list[T] = []
-    func_thread = Thread(target=worker, args=(result_queue,))
-    func_thread.start()
-    root.after(100, check_thread)
-    root.mainloop()
-    func_thread.join()
-    if len(result_queue) == 1:
-        return result_queue[0]
-    raise RuntimeError("tcurses quit unexpectedly")

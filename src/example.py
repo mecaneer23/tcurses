@@ -2,7 +2,7 @@
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring, missing-module-docstring
 
-from tcurses import wrapper, curses, Screen
+from tcurses import curses, Screen
 # import curses
 
 
@@ -40,4 +40,4 @@ def main(scr: Screen):
 
 
 if __name__ == "__main__":
-    wrapper(main)
+    curses.wrapper(main)
