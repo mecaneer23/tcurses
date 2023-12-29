@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# pylint: disable=missing-class-docstring, too-many-ancestors
-# pylint: disable=missing-function-docstring, missing-module-docstring
+# pylint: disable=missing-docstring
 
 from functools import wraps
 from math import log2
@@ -11,17 +10,17 @@ from typing import Any, Callable, TypeVar
 T = TypeVar("T")
 
 
-def _updates_screen(func: Callable[..., None]) -> Callable[..., None]:
-    @wraps(func)
-    def _inner(self, *args, **kwargs) -> None:
-        screen.configure(state="normal")
-        func(self, *args, **kwargs)
-        screen.configure(state="disabled")
-
-    return _inner
-
-
 class Screen:
+    @staticmethod
+    def _updates_screen(func: Callable[..., None]) -> Callable[..., None]:
+        @wraps(func)
+        def _inner(self: "Screen", *args: list[Any], **kwargs: dict[Any, Any]) -> None:
+            screen.configure(state="normal")
+            func(self, *args, **kwargs)
+            screen.configure(state="disabled")
+
+        return _inner
+
     def __init__(
         self,
         text: Text,
@@ -42,7 +41,7 @@ class Screen:
         root.bind("<Key>", stdscr._handle_key)
 
     def _handle_key(  # pylint: disable=too-many-return-statements
-        self, event: Event
+        self, event: "Event[Any]"
     ) -> None:
         if self.has_key.get() or event.keysym.endswith(("_R", "_L")):
             return
@@ -128,7 +127,7 @@ class Screen:
             for pos, val in enumerate(str(attrs))
             if val == "1"
         ]
-        output = []
+        output: list[str] = []
         for item in potential:
             if (attrs >> 1) % 2 == 1:  # if attrs ends with 1_, standout
                 if item.startswith("COLOR_"):
@@ -157,7 +156,7 @@ class Screen:
     def nodelay(self, flag: bool = True) -> None:
         _ = flag
 
-    def box(self):
+    def box(self) -> None:
         self.addstr(
             0,
             0,
@@ -246,7 +245,7 @@ class curses:  # pylint: disable=invalid-name
         return 2 ** (10 + fg) | 2 ** (10 + bg)
 
     @staticmethod
-    def newwin(nlines: int, ncols: int, begin_y: int = 0, begin_x: int = 0):
+    def newwin(nlines: int, ncols: int, begin_y: int = 0, begin_x: int = 0) -> Screen:
         return Screen(screen, (ncols, nlines), (begin_y, begin_x))
 
     @staticmethod
